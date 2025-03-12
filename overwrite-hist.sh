@@ -51,19 +51,18 @@ echo "Finding commits from $OLD_EMAIL"
 
 BRANCHES=$(git branch -r  | grep -v '\->' | sed 's/origin\///')
 for BRANCH in $BRANCHES; do
-
-    if ! git log --author="$OLD_EMAIL" --oneline | grep -q .; then
-	continue
-    fi
-    
-    echo "Generating new history for $BRANCH"
-    
     git checkout "$BRANCH"
     if [ $? -ne 0 ]; then
 	echo "Failed to checkout branch $BRANCH, skipping."
 	continue
     fi
+    
+    if ! git log --author="$OLD_EMAIL" --oneline | grep -q .; then
+	continue
+    fi
 
+    echo "Generating new history for $BRANCH"
+    
     if [ "$FORCE_ALL" = true ]; then
 	sh change-auth.sh
 	if [ $? -ne 0 ]; then
