@@ -2,7 +2,7 @@
 
 # $# - num args
 #Expects 1 arg that is the repo url
-if [ "$#" -ne 1 ]||[ "$#" -ne 2]; then
+if [ "$#" -lt 1 ]||[ "$#" -gt 2]; then
     echo "Incorrect number of args. Usage: $0 <github_repo_url>"
     exit 1
 fi
@@ -13,7 +13,7 @@ REPO_NAME=$(basename "$REPO_URL" .git)
 BRANCH_SUFFIX="-hist-update"
 
 FORCE_ALL=false
-if [ "$#" -eq 2] && [ "$2" = "YOLO" ]; then
+if [ "$#" -eq 2 ] && [ "$2" = "YOLO" ]; then
     echo "Force history overwrite to all branches? y/n"
     read -r CONFIRM
     if [[ "$CONFIRM" == "y" || "$CONFIRM" == "Y" ]]; then
@@ -50,9 +50,12 @@ fi
 echo "Finding commits from $OLD_EMAIL"
 
 BRANCHES=$(git branch -r  | grep -v '\->' | sed 's/origin\///')
-echo "Found branches: $BRANCHES"
-
 for BRANCH in $BRANCHES; do
+
+    if ! git log --author="$OLD_EMAIL" --oneline | grep -q .; then
+	continue
+    fi
+    
     echo "Generating new history for $BRANCH"
     
     git checkout "$BRANCH"
@@ -63,7 +66,7 @@ for BRANCH in $BRANCHES; do
 
     if [ "$FORCE_ALL" = true ]; then
 	sh change-auth.sh
-	if [$? -ne 0 ]; then
+	if [ $? -ne 0 ]; then
 	    echo "Error, execution of change-auth failed. Skipping $BRANCH"
 	    continue
 	fi
@@ -76,7 +79,7 @@ for BRANCH in $BRANCHES; do
 
 	echo "YOLO, $BRANCH has been forcefully overwritten."
     else
-	NEW_BRANCH = "${BRANCH}${BRANCH_SUFFIX}"
+	NEW_BRANCH="${BRANCH}${BRANCH_SUFFIX}"
 
 	git checkout -b "$NEW_BRANCH"
 	if [ $? -ne 0 ]; then
@@ -113,4 +116,4 @@ if [ "$FORCE_ALL" = true ]; then
     echo "History forcibly overwritten. I hope you know what you're doing! If this was an accident, you can try swapping old and new email in change-auth..."
 else
     echo "Create a pull request from each branch ending in $BRANCH_SUFFIX to merge the changes."
-fin
+fi
