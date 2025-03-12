@@ -8,7 +8,7 @@ if [ "$#" -lt 1 ]||[ "$#" -gt 2 ]; then
 fi
 
 REPO_URL="$1"
-REPO_NAME=$(basename "$REPO_URL" .git)
+REPO=$(basename "$REPO_URL")
 #Feel free to change this!
 BRANCH_SUFFIX="-hist-update"
 
@@ -26,19 +26,25 @@ fi
 
 # $? - exit status 
 # -ne - not equal
-git clone --bare "$REPO_URL"
+git clone "$REPO_URL" "$REPO"
 if [ $? -ne 0 ]; then
     echo "Failed to clone repository."
     exit 1
 fi
 
-cp change-auth.sh "$REPO_NAME.git"
+REPO_NAME="${REPO}
+
+cp change-auth.sh "$REPO_NAME"
 if [ $? -ne 0 ]; then
     echo "Error: failed cp of change-auth.sh."
     exit 1
 fi
 
-cd "$REPO_NAME.git" || exit
+echo "dirs"
+ls
+echo "$REPO_NAME"
+
+cd "$REPO_NAME" || exit
 
 #Set OLD_EMAIL in change-auth
 OLD_EMAIL=$(grep "OLD_EMAIL"= change-auth.sh | cut -d'"' -f2)
@@ -49,7 +55,16 @@ fi
 
 echo "Finding commits from $OLD_EMAIL"
 
-BRANCHES=$(git branch -r  | grep -v '\->' | sed 's/origin\///')
+git fetch origin
+BRANCHES=$(git branch -r | grep -v 'HEAD' | grep -v '->' | sed 's/origin\///')
+
+if [ -z "$BRANCHES" ]; then
+    echo "WARNING: Branch return failed, trying again..."
+    # Alternative method to get branches
+    BRANCHES="main master $(git branch | sed 's/^..//')"
+    echo "Using branches: $BRANCHES"
+fi
+
 for BRANCH in $BRANCHES; do
     git checkout "$BRANCH"
     if [ $? -ne 0 ]; then
@@ -57,8 +72,10 @@ for BRANCH in $BRANCHES; do
 	continue
     fi
     
-    if ! git log --author="$OLD_EMAIL" --oneline | grep -q .; then
-	continue
+    EMAIL_COMMITS=$(git log --author="$OLD_EMAIL" --pretty=format:%h -n 1)
+    if [ -z "$EMAIL_COMMITS" ]; then
+        echo "$BRANCH has no commits from $OLD_EMAIL, skipping."
+        continue
     fi
 
     echo "Generating new history for $BRANCH"
@@ -108,11 +125,11 @@ done
 cd ..
 
 # Remove the cloned repository
-sudo rm -rf "$REPO_NAME.git"
+sudo rm -rf "$REPO_NAME"
 
 echo "Process completed successfully."
 if [ "$FORCE_ALL" = true ]; then
-    echo "History forcibly overwritten. I hope you know what you're doing! If this was an accident, you can try swapping old and new email in change-auth..."
+    echo "History forcibly overwritten. I hope you know what you're doing! If this was an accident, you can try swapping old and new email in change-auth"
 else
     echo "Create a pull request from each branch ending in $BRANCH_SUFFIX to merge the changes."
 fi
