@@ -2,8 +2,8 @@
 
 # $# - num args
 #Expects 1 arg that is the repo url
-if [ "$#" -lt 1 ]||[ "$#" -gt 2]; then
-    echo "Incorrect number of args. Usage: $0 <github_repo_url>"
+if [ "$#" -lt 1 ]||[ "$#" -gt 2 ]; then
+    echo "Incorrect number of args. Usage: $0 <github_repo_url> <YOLO (optional)>"
     exit 1
 fi
 
