@@ -2,7 +2,7 @@
 
   git filter-branch --env-filter '
 
-  OLD_EMAIL="dead_email@example.com"
+  OLD_EMAIL="deprecated_email@example.com"
   CORRECT_NAME="Github_Username"
   CORRECT_EMAIL="current_email@example.com"
 

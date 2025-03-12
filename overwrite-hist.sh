@@ -9,6 +9,8 @@ fi
 
 REPO_URL="$1"
 REPO_NAME=$(basename "$REPO_URL" .git)
+#Feel free to change this!
+NEW_BRANCH="author-hist-update"
 
 # $? - exit status 
 # -ne - not equal
@@ -26,10 +28,16 @@ fi
 
 cd "$REPO_NAME.git" || exit
 
+git checkout -b "$NEW_BRANCH"
+if [ $? -n 0 ]; then
+	echo "Failed to create new branch."
+	exit 1
+fi 
+
 sh change-auth.sh
 if [ $? -ne 0 ]; then
-    echo "Error, did not finish execution of change_auth.sh."
-    exit 1
+	echo "Error, did not finish execution of change_auth.sh."
+	exit 1
 fi
 
 # Force push all branches and tags
@@ -46,3 +54,4 @@ cd ..
 sudo rm -rf "$REPO_NAME.git"
 
 echo "Process completed successfully."
+echo "Create a pull request from the '$NEW_BRANCH' branch to merge the changes."
