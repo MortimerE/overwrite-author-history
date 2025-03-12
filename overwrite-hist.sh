@@ -2,7 +2,7 @@
 
 # $# - num args
 #Expects 1 arg that is the repo url
-if [ "$#" -ne 1 ]; then
+if [ "$#" -ne 1 ]||[ "$#" -ne 2]; then
     echo "Incorrect number of args. Usage: $0 <github_repo_url>"
     exit 1
 fi
@@ -11,6 +11,18 @@ REPO_URL="$1"
 REPO_NAME=$(basename "$REPO_URL" .git)
 #Feel free to change this!
 BRANCH_SUFFIX="-hist-update"
+
+FORCE_ALL=false
+if [ "$#" -eq 2] && [ "$2" = "YOLO" ]; then
+    echo "Force history overwrite to all branches? y/n"
+    read -r CONFIRM
+    if [[ "$CONFIRM" == "y" || "$CONFIRM" == "Y" ]]; then
+	FORCE_ALL=true
+	echo "Force pushing all branches, huh? Bold"
+    else
+	echo "Force push cancelled, proceeding with safe branch creation"
+    fi
+fi
 
 # $? - exit status 
 # -ne - not equal
@@ -49,35 +61,46 @@ for BRANCH in $BRANCHES; do
 	continue
     fi
 
-    NEW_BRANCH = "${BRANCH}${BRANCH_SUFFIX}"
+    if [ "$FORCE_ALL" = true ]; then
+	sh change-auth.sh
+	if [$? -ne 0 ]; then
+	    echo "Error, execution of change-auth failed. Skipping $BRANCH"
+	    continue
+	fi
 
-    git checkout -b "$NEW_BRANCH"
-    if [ $? -ne 0 ]; then
-	echo "Failed to create new branch $NEW_BRANCH, skipping."
-	continue
+	git push --force origin "$BRANCH"
+	if [ $? -ne 0 ]; then
+	    echo "Failed to push changes to branch $BRANCH. Skipping"
+	    continue
+	fi
+
+	echo "YOLO, $BRANCH has been forcefully overwritten."
+    else
+	NEW_BRANCH = "${BRANCH}${BRANCH_SUFFIX}"
+
+	git checkout -b "$NEW_BRANCH"
+	if [ $? -ne 0 ]; then
+	    echo "Failed to create new branch $NEW_BRANCH, skipping."
+	    continue
+	fi
+    
+        sh change-auth.sh
+        if [ $? -ne 0 ]; then
+	   echo "Error, did not finish execution of change-auth.sh."
+	   continue
+	fi
+
+	git push --force origin "$NEW_BRANCH"
+        
+	if [ $? -ne 0 ]; then
+	   echo "Failed to push $NEW_BRANCH"
+	   continue
+	fi
+
+	echo "$NEW_BRANCH successfully pushed to $REPO_NAME! Yatta~"
+
     fi
-
-    sh change-auth.sh
-    if [ $? -ne 0 ]; then
-	echo "Error, did not finish execution of change_auth.sh."
-	continue
-    fi
-
-    git push --force origin "$NEW_BRANCH"
-    if [ $? -ne 0 ]; then
-	echo "Failed to push $NEW_BRANCH"
-	continue
-    fi
-
-    echo "$NEW_BRANCH successfully pushed to $REPO_NAME! Yatta~"
 done
-
-# Force push all branches and tags
-#git push --force --tags origin 'refs/heads/*'
-#if [ $? -ne 0 ]; then
-#    echo "Failed to push changes."
-#    exit 1
-#fi
 
 # Move back to the parent directory
 cd ..
@@ -86,4 +109,8 @@ cd ..
 sudo rm -rf "$REPO_NAME.git"
 
 echo "Process completed successfully."
-echo "Create a pull request from each branch ending in $BRANCH_SUFFIX to merge the changes."
+if [ "$FORCE_ALL" = true ]; then
+    echo "History forcibly overwritten. I hope you know what you're doing! If this was an accident, you can try swapping old and new email in change-auth..."
+else
+    echo "Create a pull request from each branch ending in $BRANCH_SUFFIX to merge the changes."
+fin
